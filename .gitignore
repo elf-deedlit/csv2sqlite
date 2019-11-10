@@ -102,3 +102,13 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# Python virtualenv folder
+bin/
+include/
+lib/
+share/
+
+*.swp
+tmp/
+
