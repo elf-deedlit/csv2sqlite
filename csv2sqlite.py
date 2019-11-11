@@ -2,10 +2,9 @@
 # vim:set ts=4 sw=4 et smartindent fileencoding=utf-8 filetype=python:
 import argparse
 import csv
+import fileinput
 import os
-import pprint
 import sqlite3
-from datetime import datetime
 
 def create_db(db, keys):
     sql = 'CREATE TABLE IF NOT EXISTS csv'
@@ -36,6 +35,7 @@ def parse_option():
     parser = argparse.ArgumentParser(description = u'CSVファイルをsqlite3に変換')
     parser.add_argument('--encoding', choices = ENCODING_LIST,
         default = 'utf8', help = u'文字コード')
+    parser.add_argument('--output', type = str, help = u'出力ファイル名')
     parser.add_argument('files', nargs = '+', help = u'CSVファイル')
 
     return parser.parse_args()
@@ -45,12 +45,27 @@ def main():
     encoding = option.encoding
     if encoding == 'sjis':
         encoding = 'ms932'
-    for f in option.files:
-        with open(f, encoding = encoding, errors = 'backslashreplace', newline = '') as fp:
+    for file_nr, filename in enumerate(option.files):
+        # fileinputは引数にファイル名の配列を渡せるが
+        # 最初の行を読み込まないとfilename()とかisstdin()が値を返さない
+        # そのため、1ファイルずつ処理する
+        with fileinput.FileInput((filename, ),
+                openhook = fileinput.hook_encoded(encoding, 'backslashreplace')) as fp:
             reader = csv.DictReader(fp)
-            base, ext = os.path.splitext(f)
-            fname = base + '.sqlite'
+            if filename == '-':
+                if option.output:
+                    if file_nr == 0:
+                        fname = '{0}.sqlite'.format(option.output)
+                    else:
+                        base, _ = os.path.splitext(option.output)
+                        fname = '{0}.{1}.sqlite'.format(base, file_nr)
+                else:
+                    fname = '{0}.sqlite'.format(file_nr)
+            else:
+                base, ext = os.path.splitext(filename)
+                fname = base + '.sqlite'
             convert_sqlite(fname, reader)
+
 
 if __name__ == '__main__':
     main()
