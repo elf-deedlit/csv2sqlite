@@ -3,7 +3,9 @@
 import argparse
 import csv
 import fileinput
+import io
 import os
+import sys
 import sqlite3
 
 def create_db(db, keys):
@@ -45,13 +47,18 @@ def main():
     encoding = option.encoding
     if encoding == 'sjis':
         encoding = 'ms932'
+
+    # 標準入力の場合、unicode変換時のエラーがstrictのままになっている
+    # ので、ここで変更してしまう
+    sys.stdin = io.TextIOWrapper(sys.stdin.buffer,
+            encoding = encoding, errors = 'backslashreplace')
+
     for file_nr, filename in enumerate(option.files):
         # fileinputは引数にファイル名の配列を渡せるが
         # 最初の行を読み込まないとfilename()とかisstdin()が値を返さない
         # そのため、1ファイルずつ処理する
         with fileinput.FileInput((filename, ),
                 openhook = fileinput.hook_encoded(encoding, 'backslashreplace')) as fp:
-            reader = csv.DictReader(fp)
             if filename == '-':
                 if option.output:
                     if file_nr == 0:
@@ -64,6 +71,7 @@ def main():
             else:
                 base, ext = os.path.splitext(filename)
                 fname = base + '.sqlite'
+            reader = csv.DictReader(fp)
             convert_sqlite(fname, reader)
 
 
